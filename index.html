@@ -14,7 +14,7 @@
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="stylesheet" href="vendor/maplibre-gl.css">
-<link rel="stylesheet" href="style.css?v=2">
+<link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
 <div id="map" aria-label="Mapa do Jardim Botânico"></div>
@@ -40,6 +40,11 @@
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="6.5"/><circle class="dot" cx="12" cy="12" r="2.6"/></svg>
   </button>
 </div>
+
+<button id="startBtn" class="cta" type="button">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 19 21 12 17 5 21z"/></svg>
+  Mostrar onde estou e para onde aponto
+</button>
 
 <section id="sheet" aria-live="polite" hidden>
   <div class="grab"></div>
@@ -93,7 +98,7 @@
 <div id="toast" role="status" hidden></div>
 
 <script src="vendor/maplibre-gl.js"></script>
-<script src="data.js?v=2"></script>
-<script src="app.js?v=2"></script>
+<script src="data.js?v=7"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>

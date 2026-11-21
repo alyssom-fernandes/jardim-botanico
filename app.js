@@ -19,7 +19,7 @@ function brg(a, b) {
 const fmtM = (m) => m < 1000 ? `${Math.round(m / (m < 100 ? 5 : 10)) * (m < 100 ? 5 : 10)} m` : `${(m / 1000).toFixed(1).replace('.', ',')} km`;
 const fmtMin = (m) => { const t = Math.max(1, Math.round(m / 65)); return t < 60 ? `${t} min` : `${Math.floor(t / 60)} h ${t % 60} min`; };
 const norm = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-const CARD = ['norte', 'nordeste', 'leste', 'sudeste', 'sul', 'sudoeste', 'oeste', 'noroeste'];
+const CARD = ['ao norte', 'a nordeste', 'a leste', 'a sudeste', 'ao sul', 'a sudoeste', 'a oeste', 'a noroeste'];
 
 /* ---------------- ícones ---------------- */
 const ICON = {
@@ -253,7 +253,7 @@ function startRoute(it) {
   routeTo = it; document.body.classList.add('routing'); $('#routeBar').hidden = false;
   drawRoute(true);
   const bounds = new maplibregl.LngLatBounds(me.c, me.c); bounds.extend(it.c);
-  map.fitBounds(bounds, { padding: { top: 120, bottom: sheetH() + 40, left: 50, right: 80 }, maxZoom: 18.5, duration: 700 });
+  map.fitBounds(bounds, { padding: { top: 120, bottom: sheetH() + 40, left: 50, right: 80 }, maxZoom: 18.5, duration: 700, bearing: map.getBearing() });
 }
 function stopRoute() {
   routeTo = null; document.body.classList.remove('routing'); $('#routeBar').hidden = true;
@@ -266,6 +266,8 @@ $('#rbClose').onclick = stopRoute;
 let sel = null;
 const label = (it) => it.n ? `${it.n} · ${it.title}` : it.title;
 function sheetH() { const s = $('#sheet'); return s.hidden ? 0 : s.getBoundingClientRect().height; }
+function syncSheetH() { document.documentElement.style.setProperty('--sheet-h', Math.ceil(sheetH()) + 'px'); }
+if ('ResizeObserver' in window) new ResizeObserver(syncSheetH).observe(document.getElementById('sheet'));
 function select(it, fly) {
   if (sel) { const m = markers.get(sel.id); if (m) m.el.classList.remove('sel'); }
   sel = it;
@@ -280,7 +282,7 @@ function select(it, fly) {
     : (it.kind === 'svc' ? 'Posição do ícone da placa oficial (margem de ~10 m)' : `${CAT_NAME[it.cat] || ''} · posição pela placa oficial do Jardim (margem de ~10 m)`);
   $('#sheet').hidden = false;
   document.body.classList.add('sheet-open');
-  document.documentElement.style.setProperty('--sheet-h', sheetH() + 'px');
+  syncSheetH();
   refreshSheetDir();
   if (fly) {
     const z = Math.max(map.getZoom(), 17.2);
@@ -298,7 +300,7 @@ $('#sRoute').onclick = () => sel && startRoute(sel);
 map.on('click', () => { if (!$('#sheet').hidden) closeSheet(); });
 
 function relWords(b) {
-  if (heading == null) return { word: `ao ${CARD[Math.round(b / 45) % 8]}`, rot: b - map.getBearing() };
+  if (heading == null) return { word: CARD[Math.round(b / 45) % 8], rot: b - map.getBearing() };
   const r = (b - heading + 360) % 360;
   const word = r < 25 || r > 335 ? 'à sua frente' : r < 155 ? (r < 65 ? 'à frente, à direita' : 'à sua direita') : r > 205 ? (r > 295 ? 'à frente, à esquerda' : 'à sua esquerda') : 'atrás de você';
   return { word, rot: r - 0 };
@@ -326,30 +328,59 @@ function setMode(m) {
   if (m !== 3 && Math.abs(map.getBearing()) > 0.5 && m === 2) { /* mantém a rotação escolhida */ }
   onRotate();
 }
-function meEl() {
-  const el = document.createElement('div'); el.className = 'me';
-  el.innerHTML = '<svg class="beam off" viewBox="0 0 120 120" style="position:absolute;inset:0"><defs><radialGradient id="bg1" cx="60" cy="60" r="58" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#1a73e8" stop-opacity=".6"/><stop offset="1" stop-color="#1a73e8" stop-opacity="0"/></radialGradient></defs><path d="M60 60 L29.3 10.8 A58 58 0 0 1 90.7 10.8 Z" fill="url(#bg1)"/></svg><div class="halo"></div><div class="dot"></div>';
+function beamEl() {
+  const el = document.createElement('div'); el.className = 'mebeam';
+  el.innerHTML = '<svg class="beam off" viewBox="0 0 120 120" style="position:absolute;inset:0"><defs><radialGradient id="bg1" cx="60" cy="60" r="60" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#1a73e8" stop-opacity=".8"/><stop offset=".55" stop-color="#1a73e8" stop-opacity=".38"/><stop offset="1" stop-color="#1a73e8" stop-opacity="0"/></radialGradient></defs><path d="M60 60 L24.7 11.5 A60 60 0 0 1 95.3 11.5 Z" fill="url(#bg1)"/></svg>';
   return el;
 }
+function meEl() {
+  const el = document.createElement('div'); el.className = 'me';
+  el.innerHTML = '<div class="halo"></div><div class="dot"></div>';
+  return el;
+}
+let beamMarker = null;
 function circlePoly(c, r) {
   const p = pm(c), pts = [];
   for (let i = 0; i <= 48; i++) { const a = i / 48 * 2 * Math.PI; pts.push(ung([p[0] + r * Math.cos(a), p[1] + r * Math.sin(a)])); }
   return { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [pts] } };
+}
+const angDiff = (a, b) => ((a - b + 540) % 360) - 180;
+/* rumo do GPS (andando) para conferir a bússola: magnética x verdadeira */
+const calib = [];
+function calibrate(pos) {
+  const co = pos.coords;
+  if (rawH == null || co.heading == null || isNaN(co.heading) || (co.speed || 0) < 0.9 || co.accuracy > 20) return;
+  calib.push(angDiff(co.heading, rawH)); if (calib.length > 30) calib.shift();
+  if (calib.length < 8) return;
+  const sx = calib.reduce((a, d) => a + Math.cos(rad(d)), 0), sy = calib.reduce((a, d) => a + Math.sin(rad(d)), 0);
+  const R = Math.hypot(sx, sy) / calib.length; if (R < 0.85) return; // pouco consistente
+  const m = deg(Math.atan2(sy, sx));
+  declOn = Math.abs(angDiff(m, DECL)) < Math.abs(angDiff(m, 0));
 }
 function onPos(pos) {
   const c = [pos.coords.longitude, pos.coords.latitude], acc = pos.coords.accuracy;
   const first = !me;
   me = { c, acc, t: Date.now() }; lastFix = Date.now();
   locBtn.classList.remove('wait');
-  if (!meMarker) { meMarker = new maplibregl.Marker({ element: meEl(), anchor: 'center', rotationAlignment: 'map', pitchAlignment: 'map' }).setLngLat(c).addTo(map); }
-  meMarker.setLngLat(c); meMarker.getElement().classList.remove('stale');
+  try { localStorage.setItem('jb-loc', '1'); } catch (e) {}
+  $('#startBtn').hidden = true;
+  if (!meMarker) {
+    beamMarker = new maplibregl.Marker({ element: beamEl(), anchor: 'center', rotationAlignment: 'map', pitchAlignment: 'map' }).setLngLat(c).addTo(map);
+    meMarker = new maplibregl.Marker({ element: meEl(), anchor: 'center' }).setLngLat(c).addTo(map);
+    if (heading != null) renderHeading();
+  }
+  meMarker.setLngLat(c); beamMarker.setLngLat(c); meMarker.getElement().classList.remove('stale');
   if (map.getSource('acc')) map.getSource('acc').setData(acc > 6 ? circlePoly(c, acc) : fc([]));
+  calibrate(pos);
   // sem bússola: usa o rumo do GPS quando está andando
-  if (!compassOK && pos.coords.heading != null && !isNaN(pos.coords.heading) && (pos.coords.speed || 0) > 0.7) { heading = pos.coords.heading; renderHeading(); }
+  if (!compassOK && pos.coords.heading != null && !isNaN(pos.coords.heading) && (pos.coords.speed || 0) > 0.7) { heading = pos.coords.heading; headingSrc = 'gps'; renderHeading(); }
   if (first) {
     const dG = distToGarden(c);
     if (dG > 1500) { setMode(1); toast(`Você está a ${fmtM(dG)} do Jardim. O ponto azul aparece no mapa quando chegar.`); }
-    else map.easeTo({ center: c, zoom: Math.max(map.getZoom(), 17.5), duration: 700 });
+    else {
+      map.easeTo({ center: c, zoom: Math.max(map.getZoom(), 17.5), duration: 700 });
+      setTimeout(() => toast('O cone azul mostra para onde o celular aponta. Toque de novo no botão azul para o mapa girar junto com você.', 6500), 900);
+    }
   } else if (mode >= 2) {
     map.easeTo({ center: c, duration: 450, bearing: mode === 3 && heading != null ? heading : map.getBearing() });
   }
@@ -360,7 +391,7 @@ function onPos(pos) {
 }
 function onPosErr(err) {
   locBtn.classList.remove('wait');
-  if (err.code === 1) toast('A localização está bloqueada. No iPhone: Ajustes › Privacidade › Serviços de Localização › Safari › “Ao Usar o App”. Depois recarregue a página.', 9000);
+  if (err.code === 1) toast('A localização está bloqueada. No iPhone: Ajustes › Privacidade › Serviços de Localização › Safari › "Ao Usar o App". Depois recarregue a página.', 9000);
   else if (!me) toast('Ainda sem sinal de GPS. Fique em um lugar mais aberto por alguns segundos.', 5000);
 }
 function distToGarden(c) {
@@ -376,43 +407,64 @@ function pointInRing(c, ring) {
   return inside;
 }
 
-/* bússola do aparelho */
-let compassOK = false, hRaf = 0, lastBearingSet = 0;
+/* bússola do aparelho
+   A bússola do celular mede o norte magnético. No Jardim ele fica 23,0° a oeste do norte verdadeiro
+   (modelo WMM-2025 da NOAA para 21/11/2026), então o rumo é corrigido. Se, andando, o rumo do GPS
+   mostrar que o aparelho já entrega o norte verdadeiro, a correção é desligada sozinha. */
+const DECL = -23.0;
+let declOn = true, rawH = null, headingSrc = null;
+let compassOK = false, hRaf = 0, lastBearingSet = 0, orientOn = false, compassDenied = false;
 function onOrient(e) {
   let h = null;
-  if (typeof e.webkitCompassHeading === 'number' && !isNaN(e.webkitCompassHeading)) h = e.webkitCompassHeading;
+  if (typeof e.webkitCompassHeading === 'number' && !isNaN(e.webkitCompassHeading) && e.webkitCompassHeading >= 0) h = e.webkitCompassHeading;
   else if ((e.absolute || e.type === 'deviceorientationabsolute') && e.alpha != null) h = 360 - e.alpha;
   if (h == null) return;
   const so = (screen.orientation && typeof screen.orientation.angle === 'number') ? screen.orientation.angle : (window.orientation || 0);
   h = (h + so + 360) % 360;
   compassOK = true;
-  if (heading == null) heading = h; else { const d = ((h - heading + 540) % 360) - 180; heading = (heading + d * 0.3 + 360) % 360; }
-  if (!hRaf) hRaf = requestAnimationFrame(() => { hRaf = 0; renderHeading(); });
+  if (rawH == null) rawH = h; else rawH = (rawH + angDiff(h, rawH) * 0.3 + 360) % 360;
+  heading = (rawH + (declOn ? DECL : 0) + 360) % 360; headingSrc = 'bussola';
+  if (!hRaf) hRaf = setTimeout(() => { hRaf = 0; renderHeading(); }, 50);
 }
 function renderHeading() {
-  if (!meMarker || heading == null) return;
-  meMarker.setRotation(heading);
-  meMarker.getElement().querySelector('.beam').classList.remove('off');
+  if (heading == null) return;
+  if (beamMarker) {
+    beamMarker.setRotation(heading);
+    beamMarker.getElement().querySelector('.beam').classList.remove('off');
+  }
   if (mode === 3) {
     const now = performance.now();
-    if (now - lastBearingSet > 80 && Math.abs(((heading - map.getBearing() + 540) % 360) - 180) > 1.5) { lastBearingSet = now; map.jumpTo({ bearing: heading }); }
+    if (now - lastBearingSet > 80 && Math.abs(angDiff(heading, map.getBearing())) > 1.5) { lastBearingSet = now; map.jumpTo({ bearing: heading }); }
   }
   refreshSheetDir();
+  updateHeadingLine();
 }
-async function askCompass() {
-  try {
-    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-      const r = await DeviceOrientationEvent.requestPermission();
-      if (r !== 'granted') { toast('Sem acesso à bússola: a direção vai aparecer quando você andar.', 5000); return; }
-    }
-  } catch (e) { /* segue sem bússola */ }
+const needsIOSPerm = () => typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function';
+function listenOrientation() {
+  if (orientOn) return; orientOn = true;
   if ('ondeviceorientationabsolute' in window) window.addEventListener('deviceorientationabsolute', onOrient, true);
   else window.addEventListener('deviceorientation', onOrient, true);
+  setTimeout(() => { if (!compassOK && me) toast('Este aparelho não mandou a bússola. A direção aparece quando você começar a andar.', 5000); }, 6000);
 }
-let compassAsked = false;
+// No iPhone a bússola só pode ser ligada por um toque: este pedido roda dentro do toque
+let permAsked = false;
+function askCompass() {
+  if (orientOn) return;
+  if (!needsIOSPerm()) { listenOrientation(); return; }
+  if (permAsked) return;
+  try {
+    DeviceOrientationEvent.requestPermission().then((r) => {
+      permAsked = true;
+      listenOrientation();
+      if (r !== 'granted') setTimeout(() => { if (!compassOK) toast('Sem acesso à bússola. Para liberar: feche a aba, abra o link de novo e toque em "Permitir" quando o iPhone perguntar sobre movimento e orientação.', 9000); }, 2500);
+    }).catch(() => {});
+  } catch (e) { /* sem toque: tenta no próximo */ }
+}
+document.addEventListener('click', () => { if (!orientOn) askCompass(); }, true);
+document.addEventListener('touchend', () => { if (!orientOn) askCompass(); }, true);
 function startLocate(fromRoute) {
   if (!('geolocation' in navigator)) { toast('Este navegador não dá acesso ao GPS.'); return; }
-  if (!compassAsked) { compassAsked = true; askCompass(); }
+  askCompass();
   if (watchId == null) {
     locBtn.classList.add('wait');
     watchId = navigator.geolocation.watchPosition(onPos, onPosErr, { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 });
@@ -422,14 +474,29 @@ function startLocate(fromRoute) {
 locBtn.onclick = () => {
   if (watchId == null || mode === 0) { startLocate(); return; }
   if (mode === 1) { setMode(2); if (me) map.easeTo({ center: me.c, zoom: Math.max(map.getZoom(), 17.5), duration: 500 }); return; }
-  if (mode === 2) { setMode(3); if (heading == null) toast('Gire o celular devagar para a bússola acordar.', 3500); else map.easeTo({ bearing: heading, center: me ? me.c : map.getCenter(), duration: 400 }); return; }
-  setMode(2); map.easeTo({ bearing: 0, duration: 400 });
+  if (mode === 2) {
+    setMode(3);
+    if (heading == null) toast('Gire o celular devagar para a bússola acordar.', 3500);
+    else { map.easeTo({ bearing: heading, center: me ? me.c : map.getCenter(), duration: 400 }); toast('Mapa girando com você: o topo da tela é para onde o celular aponta.', 3500); }
+    return;
+  }
+  setMode(2); map.easeTo({ bearing: SIGN_BEARING, duration: 400 });
 };
+$('#startBtn').onclick = () => { $('#startBtn').hidden = true; startLocate(); };
 map.on('dragstart', (e) => { if (e.originalEvent && mode >= 2) setMode(1); });
 map.on('rotatestart', (e) => { if (e.originalEvent && mode === 3) setMode(2); });
 setInterval(() => { if (me && Date.now() - lastFix > 30000 && meMarker) meMarker.getElement().classList.add('stale'); }, 5000);
+// já usou antes: liga o GPS sozinho ao abrir (no iPhone a bússola liga no primeiro toque)
+try {
+  if (localStorage.getItem('jb-loc') === '1') {
+    $('#startBtn').hidden = true;
+    if (!needsIOSPerm()) listenOrientation();
+    watchId = navigator.geolocation.watchPosition(onPos, onPosErr, { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 });
+    setMode(2);
+  }
+} catch (e) {}
 
-/* onde estou */
+/* onde estou + para onde estou apontando */
 const namedPaths = JB.paths.features.filter((f) => f.properties.n);
 function nearestPathName(c) {
   const p = pm(c); let best = null;
@@ -444,13 +511,41 @@ function nearestPathName(c) {
   }
   return best && best.d < 14 ? best.n : null;
 }
-let lastStatus = 0;
-function updateStatus() {
+const CARD_TO = ['o norte', 'o nordeste', 'o leste', 'o sudeste', 'o sul', 'o sudoeste', 'o oeste', 'o noroeste'];
+let lastStatus = 0, whereHTML = '', headHTML = '', lastHead = 0;
+function aheadOf(c, h) {
+  let best = null;
+  for (const it of items) {
+    if (it.kind !== 'poi') continue;
+    const d = dist(c, it.c); if (d < 12 || d > 500) continue;
+    const off = Math.abs(angDiff(brg(c, it.c), h));
+    const lim = d < 60 ? 22 : 14;
+    if (off <= lim && (!best || d < best.d)) best = { d, it };
+  }
+  return best;
+}
+function paintStatus() {
   const st = $('#status');
-  if (!me) { st.hidden = true; return; }
-  const now = Date.now(); if (now - lastStatus < 3000) return; lastStatus = now;
+  const html = [whereHTML, headHTML].filter(Boolean).map((x) => `<span class="ln">${x}</span>`).join('');
+  st.innerHTML = html; st.hidden = !html;
+}
+function updateHeadingLine() {
+  const now = Date.now(); if (now - lastHead < 400) return; lastHead = now;
+  if (heading == null) { headHTML = ''; paintStatus(); return; }
+  const arrow = `<i class="hd" style="transform:rotate(${Math.round(heading - map.getBearing())}deg)"></i>`;
+  let txt = `${arrow}Apontando para <b>${CARD_TO[Math.round(heading / 45) % 8]}</b> (${Math.round(heading)}°)`;
+  if (me && distToGarden(me.c) < 60) {
+    const a = aheadOf(me.c, heading);
+    txt += a ? ` · à frente: <b>${a.it.n} ${a.it.title}</b>, ${fmtM(a.d)}` : ' · nenhum ponto numerado nessa direção';
+  }
+  if (headingSrc === 'gps') txt += ' <span class="dim">(pelo GPS)</span>';
+  headHTML = txt; paintStatus();
+}
+function updateStatus() {
+  if (!me) { whereHTML = ''; paintStatus(); return; }
+  const now = Date.now(); if (now - lastStatus < 2500) return; lastStatus = now;
   const dG = distToGarden(me.c);
-  if (dG > 60) { st.hidden = false; st.innerHTML = `Você está a <b>${fmtM(dG)}</b> do Jardim`; return; }
+  if (dG > 60) { whereHTML = `Você está a <b>${fmtM(dG)}</b> do Jardim`; paintStatus(); return; }
   let near = null;
   for (const it of items) { if (it.kind !== 'poi') continue; const d = dist(me.c, it.c); if (!near || d < near.d) near = { d, it }; }
   const path = nearestPathName(me.c);
@@ -458,8 +553,9 @@ function updateStatus() {
   if (path) parts.push(`Na <b>${path}</b>`);
   if (near && near.d < 120) parts.push(`${parts.length ? 'perto' : 'Perto'} do <b>${near.it.n} · ${near.it.title}</b> (${fmtM(near.d)})`);
   if (!parts.length) parts.push('Você está no Jardim');
-  st.innerHTML = parts.join(', ') + (me.acc > 25 ? ` <span style="opacity:.7">· GPS ±${Math.round(me.acc)} m</span>` : '');
-  st.hidden = false;
+  whereHTML = parts.join(', ') + (me.acc > 25 ? ` <span class="dim">· GPS ±${Math.round(me.acc)} m</span>` : '');
+  paintStatus();
+  updateHeadingLine();
 }
 
 /* ---------------- lista e busca ---------------- */

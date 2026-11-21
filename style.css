@@ -22,6 +22,13 @@ button{font:inherit;color:inherit;cursor:pointer}
 #searchBtn em{font-style:normal;font-size:12px;font-weight:600;color:var(--green);background:#e5f0e8;border-radius:10px;padding:3px 8px}
 .status{min-height:0;padding:8px 14px;font-size:13px;line-height:1.35;color:var(--ink);align-self:flex-start;max-width:100%}
 .status b{color:var(--green)}
+.status{flex-direction:column;align-items:flex-start;gap:3px}
+.status .ln{display:block}
+.status .dim{opacity:.65}
+.status .hd{display:inline-block;width:14px;height:14px;margin:0 6px -2px 0;background:var(--blue);clip-path:polygon(50% 0,100% 100%,50% 78%,0 100%);transition:transform .3s ease}
+.cta{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--safe-b) + 28px);z-index:6;display:flex;align-items:center;gap:10px;border:0;border-radius:28px;padding:15px 22px;background:var(--blue);color:#fff;font-size:16px;font-weight:700;box-shadow:0 8px 26px #1a73e866,0 2px 6px #0003;white-space:nowrap}
+.cta svg{width:20px;height:20px;fill:#fff}
+body.sheet-open .cta{display:none}
 
 /* botões flutuantes */
 #ctrls{position:fixed;right:12px;bottom:calc(var(--safe-b) + 26px);z-index:5;display:flex;flex-direction:column;gap:10px;align-items:flex-end;transition:bottom .25s ease}
@@ -50,10 +57,12 @@ body.sheet-open #ctrls{bottom:calc(var(--sheet-h,230px) + var(--safe-b) + 16px)}
 .youhere{width:20px;height:20px;border-radius:50%;background:#c8102e;border:4px solid #fff;box-shadow:0 0 0 2px #c8102e,0 2px 6px #0005}
 
 /* ponto azul */
-.me{width:120px;height:120px;position:relative;pointer-events:none}
-.me .beam{position:absolute;left:50%;top:0;width:0;height:0;transform-origin:50% 100%}
-.me .beam svg{position:absolute;left:-60px;top:0;width:120px;height:60px;overflow:visible}
-.me .beam.off{display:none}
+.me{width:44px;height:44px;pointer-events:none;z-index:3}
+.mebeam{width:120px;height:120px;pointer-events:none;z-index:1}
+.poi,.svc{z-index:2}
+.poi.sel{z-index:4}
+.mebeam .beam{position:absolute;left:0;top:0;width:120px;height:120px;overflow:visible}
+.mebeam .beam.off{display:none}
 .me .halo{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:#1a73e833;animation:pulse 2s ease-out infinite}
 .me .dot{position:absolute;left:50%;top:50%;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;background:var(--blue);border:3px solid #fff;box-shadow:0 1px 5px #0006}
 .me.stale .dot{background:#8a96a3}.me.stale .halo{display:none}
