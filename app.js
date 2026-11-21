@@ -259,7 +259,7 @@ function fitGarden(animate) {
   let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
   GROUND.forEach((c) => { const q = map.project(c); x0 = Math.min(x0, q.x); y0 = Math.min(y0, q.y); x1 = Math.max(x1, q.x); y1 = Math.max(y1, q.y); });
   const cw = map.getContainer().clientWidth, ch = map.getContainer().clientHeight;
-  const pad = { t: 76, b: 96, l: 10, r: 72 };
+  const pad = { t: 70, b: 92, l: 10, r: 14 };
   const k = Math.min((cw - pad.l - pad.r) / (x1 - x0), (ch - pad.t - pad.b) / (y1 - y0));
   const mid = map.unproject([(x0 + x1) / 2, (y0 + y1) / 2]);
   const z = map.getZoom() + Math.log2(k);
@@ -775,6 +775,10 @@ $('#seg').addEventListener('click', (e) => { const b = e.target.closest('button'
 let toastT = 0;
 function toast(msg, ms) {
   const el = $('#toast'); el.textContent = msg; el.hidden = false;
+  // aparece logo abaixo do cartão de status, sem cobrir
+  const st = $('#status'), top = $('#top');
+  const ref = !st.hidden ? st.getBoundingClientRect() : (!top.hidden && getComputedStyle(top).display !== 'none' ? top.querySelector('.toprow').getBoundingClientRect() : null);
+  el.style.top = ref ? Math.round(ref.bottom + 8) + 'px' : '';
   clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; }, ms || 3200);
 }
 $('#toast').onclick = () => { $('#toast').hidden = true; };
@@ -795,6 +799,7 @@ function applyLang() {
   if (routeTo) drawRoute(true);
   if (!$('#list').hidden) renderList();
   lastStatus = 0; updateStatus(true); updateHeadingLine(true);
+  onRotate();
 }
 $('#langs').addEventListener('click', (e) => {
   const b = e.target.closest('button'); if (!b || b.dataset.l === lang) return;

@@ -1,5 +1,5 @@
 // Mapa do Jardim Botânico: funciona sem internet depois da primeira visita.
-const V = 'jb-app-v5';
+const V = 'jb-app-v6';
 const TILES = 'jb-tiles-v1';
 const SHELL = [
   './', 'index.html', 'style.css', 'app.js', 'data.js', 'fonts.css', 'manifest.webmanifest', 'icon-192.png', 'icon-180.png',
