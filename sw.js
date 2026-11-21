@@ -1,9 +1,10 @@
 // Mapa do Jardim Botânico: funciona sem internet depois da primeira visita.
-const V = 'jb-app-v3';
+const V = 'jb-app-v4';
 const TILES = 'jb-tiles-v1';
 const SHELL = [
-  './', 'index.html', 'style.css', 'app.js', 'data.js', 'manifest.webmanifest', 'icon-192.png', 'icon-180.png',
+  './', 'index.html', 'style.css', 'app.js', 'data.js', 'fonts.css', 'manifest.webmanifest', 'icon-192.png', 'icon-180.png',
   'vendor/maplibre-gl.js', 'vendor/maplibre-gl.css',
+  'fonts/fira/fira-400.woff2', 'fonts/fira/fira-400i.woff2', 'fonts/fira/fira-600.woff2', 'fonts/fira/fira-800.woff2',
   'fonts/Noto%20Sans%20Regular/0-255.pbf', 'fonts/Noto%20Sans%20Italic/0-255.pbf', 'fonts/Noto%20Sans%20Bold/0-255.pbf',
   'fonts/Noto%20Sans%20Regular/8192-8447.pbf', 'fonts/Noto%20Sans%20Italic/8192-8447.pbf',
 ];
