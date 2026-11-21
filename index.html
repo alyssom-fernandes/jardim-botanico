@@ -16,11 +16,11 @@
 <link rel="preload" href="fonts/fira/fira-400.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/fira/fira-800.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="vendor/maplibre-gl.css">
-<link rel="stylesheet" href="fonts.css?v=12">
-<link rel="stylesheet" href="style.css?v=12">
+<link rel="stylesheet" href="fonts.css?v=13">
+<link rel="stylesheet" href="style.css?v=13">
 </head>
 <body>
-<div id="map"></div>
+<div id="map" role="application"></div>
 
 <header id="top">
   <div class="toprow">
@@ -91,7 +91,7 @@
     <input id="q" type="search" autocomplete="off" enterkeyhint="search">
     <button id="listClose" class="x" type="button" aria-label="×">×</button>
   </div>
-  <div class="seg" id="seg" role="tablist">
+  <div class="seg" id="seg">
     <button data-m="placa" type="button"><span data-i="segSign">Placas do Jardim</span> <em>63</em></button>
     <button data-m="guia" type="button"><span data-i="segGuide">Guia de visitação</span> <em>45</em></button>
   </div>
@@ -113,7 +113,7 @@
 <div id="toast" role="status" hidden></div>
 
 <script src="vendor/maplibre-gl.js"></script>
-<script src="data.js?v=12"></script>
-<script src="app.js?v=12"></script>
+<script src="data.js?v=13"></script>
+<script src="app.js?v=13"></script>
 </body>
 </html>

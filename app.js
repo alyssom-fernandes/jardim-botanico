@@ -310,7 +310,9 @@ function renderMarkers() {
       el.textContent = it.n;
     } else { el.className = 'svc'; el.innerHTML = ICON[it.svc]; }
     el.title = label(it);
+    el.setAttribute('role', 'button'); el.tabIndex = 0; el.setAttribute('aria-label', label(it));
     el.addEventListener('click', (e) => { e.stopPropagation(); select(it, true); });
+    el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(it, true); } });
     const mk = new maplibregl.Marker({ element: el, anchor: 'center' }).setLngLat(it.c).addTo(map);
     markers.set(it.id, { mk, el, it });
   });
@@ -546,7 +548,7 @@ function onPos(pos) {
 }
 function onPosErr(err) {
   locBtn.classList.remove('wait');
-  if (err.code === 1) toast(t('t_blocked'), 9000);
+  if (err.code === 1) { toast(t('t_blocked'), 9000); try { localStorage.removeItem('jb-loc'); } catch (e) {} if (watchId != null) { navigator.geolocation.clearWatch(watchId); watchId = null; } setMode(0); $('#startBtn').hidden = false; }
   else if (!me) toast(t('t_nogps'), 5000);
 }
 function pointInRing(c, ring) {
@@ -756,13 +758,17 @@ function setFilter(f) {
   renderList();
 }
 function openList() { $('#list').hidden = false; renderList(); setTimeout(() => $('#q').focus({ preventScroll: true }), 50); }
-function closeList() { $('#list').hidden = true; $('#q').blur(); }
+function closeList() { $('#list').hidden = true; $('#q').blur(); $('#searchBtn').focus({ preventScroll: true }); }
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (!$('#list').hidden) closeList(); else if (!$('#sheet').hidden) closeSheet(); else if (routeTo) stopRoute();
+});
 $('#searchBtn').onclick = openList;
 $('#listClose').onclick = closeList;
 $('#q').addEventListener('input', renderList);
 $('#chips').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setFilter(b.dataset.f); });
 $('#svcChips').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setFilter(filt === b.dataset.f ? '' : b.dataset.f); });
-function paintSeg() { document.querySelectorAll('#seg button').forEach((b) => b.classList.toggle('on', b.dataset.m === numMode)); }
+function paintSeg() { document.querySelectorAll('#seg button').forEach((b) => { const on = b.dataset.m === numMode; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); }); }
 $('#seg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setNumMode(b.dataset.m); });
 
 /* ---------------- avisos ---------------- */
@@ -782,7 +788,8 @@ function applyLang() {
   document.querySelectorAll('.x').forEach((x) => x.setAttribute('aria-label', t('a_close')));
   $('#layerLbl').textContent = sat ? t('map') : t('sat');
   document.querySelectorAll('#langs button').forEach((b) => { const on = b.dataset.l === lang; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
-  markers.forEach((m) => { m.el.title = label(m.it); });
+  markers.forEach((m) => { m.el.title = label(m.it); m.el.setAttribute('aria-label', label(m.it)); });
+  $('#q').setAttribute('aria-label', t('qPh')); $('#map').setAttribute('aria-label', t('search'));
   renderSvcChips(); paintSeg();
   if (sel) paintSheet();
   if (routeTo) drawRoute(true);
