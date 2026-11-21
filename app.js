@@ -43,9 +43,9 @@ JB.services.forEach((s, i) => items.push({ id: 's' + i, n: null, title: SVC_NAME
 /* ---------------- mapa ---------------- */
 const base = location.href.replace(/[#?].*$/, '').replace(/[^/]*$/, '');
 const fc = (features) => ({ type: 'FeatureCollection', features });
-const ringFeat = { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [JB.ring] } };
+const GROUND = JB.pdf.ground.geometry.coordinates[0];
 let gb = [[180, 90], [-180, -90]];
-JB.ring.forEach(([x, y]) => { gb[0][0] = Math.min(gb[0][0], x); gb[0][1] = Math.min(gb[0][1], y); gb[1][0] = Math.max(gb[1][0], x); gb[1][1] = Math.max(gb[1][1], y); });
+GROUND.forEach(([x, y]) => { gb[0][0] = Math.min(gb[0][0], x); gb[0][1] = Math.min(gb[0][1], y); gb[1][0] = Math.max(gb[1][0], x); gb[1][1] = Math.max(gb[1][1], y); });
 const OSM_ATTR = '© colaboradores do <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
 const W = (a, b, c, d) => ['interpolate', ['exponential', 1.6], ['zoom'], 14, a, 16, b, 18, c, 20, d];
 const WM = (val, A, B) => ['interpolate', ['exponential', 1.6], ['zoom'], ...[14, 16, 18, 20].flatMap((z, i) => [z, ['match', ['get', 'k'], val, A[i], B[i]]])];
@@ -55,44 +55,47 @@ const style = {
   glyphs: base + 'fonts/{fontstack}/{range}.pbf',
   sources: {
     sat: { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256, maxzoom: 19, attribution: 'Satélite © Esri, Maxar, Earthstar Geographics' },
-    garden: { type: 'geojson', data: ringFeat, attribution: OSM_ATTR },
+    ground: { type: 'geojson', data: JB.pdf.ground, attribution: 'Desenho: mapa do arboreto (AAJB) · ' + OSM_ATTR },
+    beds: { type: 'geojson', data: JB.pdf.beds },
+    amazon: { type: 'geojson', data: JB.pdf.amazon },
+    pwater: { type: 'geojson', data: JB.pdf.water },
+    canal: { type: 'geojson', data: JB.pdf.canal },
+    trail: { type: 'geojson', data: JB.pdf.trail },
+    pbld: { type: 'geojson', data: JB.pdf.bld },
     ctxb: { type: 'geojson', data: JB.ctxBuildings },
     roads: { type: 'geojson', data: JB.roads },
-    greens: { type: 'geojson', data: JB.greens },
-    water: { type: 'geojson', data: JB.water },
-    ww: { type: 'geojson', data: JB.waterways },
-    rows: { type: 'geojson', data: JB.treerows },
     palms: { type: 'geojson', data: JB.palms },
     paths: { type: 'geojson', data: JB.paths },
-    bld: { type: 'geojson', data: JB.buildings },
     acc: { type: 'geojson', data: fc([]) },
     route: { type: 'geojson', data: fc([]) },
   },
   layers: [
-    { id: 'bg', type: 'background', paint: { 'background-color': '#ebe5d2' } },
+    { id: 'bg', type: 'background', paint: { 'background-color': '#e4ddc8' } },
     { id: 'sat', type: 'raster', source: 'sat', layout: { visibility: 'none' } },
-    { id: 'ctxb', type: 'fill', source: 'ctxb', paint: { 'fill-color': '#dcd3be', 'fill-outline-color': '#cfc5ad' } },
-    { id: 'road-case', type: 'line', source: 'roads', filter: ['!=', ['get', 'k'], 'walk'], layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#cdc3aa', 'line-width': W(2, 7, 20, 60) } },
-    { id: 'road', type: 'line', source: 'roads', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': ['match', ['get', 'k'], 'walk', '#f3eedf', '#fffdf6'], 'line-width': WM('walk', [.5, 1.5, 4, 10], [1.2, 5.5, 17, 54]) } },
-    { id: 'garden', type: 'fill', source: 'garden', paint: { 'fill-color': '#2f7a4c' } },
-    { id: 'garden-edge', type: 'line', source: 'garden', paint: { 'line-color': '#1c5434', 'line-width': W(1, 2, 3, 5) } },
-    { id: 'greens', type: 'fill', source: 'greens', paint: { 'fill-color': ['match', ['get', 'k'], 'wood', '#26683f', '#3e8b58'] } },
-    { id: 'ww', type: 'line', source: 'ww', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': ['match', ['get', 'k'], 'river', '#4fb0e3', '#6cc0ec'], 'line-width': WM('river', [2, 4, 11, 34], [.6, 1.4, 4, 12]) } },
-    { id: 'water', type: 'fill', source: 'water', paint: { 'fill-color': '#79c6ec' } },
-    { id: 'water-line', type: 'line', source: 'water', paint: { 'line-color': '#3f9fd3', 'line-width': W(.4, .8, 1.5, 3) } },
-    { id: 'rows', type: 'line', source: 'rows', layout: { 'line-cap': 'round' }, paint: { 'line-color': '#174d2f', 'line-width': W(.8, 2, 5, 12), 'line-dasharray': [0.1, 2.2] } },
-    { id: 'path-case', type: 'line', source: 'paths', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#1e5234', 'line-width': WM('main', [2.2, 6, 17, 46], [1.2, 3.4, 10, 28]) } },
-    { id: 'path', type: 'line', source: 'paths', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': ['match', ['get', 'k'], 'steps', '#e8d9b0', '#f6eed5'], 'line-width': WM('main', [1.4, 4.4, 14, 42], [.7, 2.2, 7.5, 24]) } },
-    { id: 'palms', type: 'circle', source: 'palms', minzoom: 16.5, paint: { 'circle-color': '#1d5a37', 'circle-radius': W(1, 1.5, 3, 7), 'circle-stroke-color': '#9fd0a9', 'circle-stroke-width': .6 } },
-    { id: 'bld', type: 'fill', source: 'bld', paint: { 'fill-color': '#d4674a' } },
-    { id: 'bld-line', type: 'line', source: 'bld', paint: { 'line-color': '#9c4329', 'line-width': W(.4, .7, 1.2, 2) } },
+    { id: 'ctxb', type: 'fill', source: 'ctxb', paint: { 'fill-color': '#d6ccb3', 'fill-outline-color': '#c9bea3' } },
+    { id: 'road-case', type: 'line', source: 'roads', filter: ['!=', ['get', 'k'], 'walk'], layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#c8bda2', 'line-width': W(2, 7, 20, 60) } },
+    { id: 'road', type: 'line', source: 'roads', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': ['match', ['get', 'k'], 'walk', '#efe9d8', '#fffdf6'], 'line-width': WM('walk', [.5, 1.5, 4, 10], [1.2, 5.5, 17, 54]) } },
+    { id: 'ground', type: 'fill', source: 'ground', paint: { 'fill-color': '#f7f0dc' } },
+    { id: 'ground-edge', type: 'line', source: 'ground', paint: { 'line-color': '#b9ab84', 'line-width': W(.6, 1, 1.6, 2.5) } },
+    { id: 'beds', type: 'fill', source: 'beds', paint: { 'fill-color': '#2f7b4b' } },
+    { id: 'beds-edge', type: 'line', source: 'beds', paint: { 'line-color': '#1f5c37', 'line-width': W(.2, .5, 1, 1.6) } },
+    { id: 'amazon', type: 'fill', source: 'amazon', paint: { 'fill-color': '#5c9d5a' } },
+    { id: 'canal', type: 'line', source: 'canal', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#5fb9ea', 'line-width': W(.5, 1.2, 3, 8) } },
+    { id: 'pwater', type: 'fill', source: 'pwater', paint: { 'fill-color': '#7cc9ef' } },
+    { id: 'pwater-line', type: 'line', source: 'pwater', paint: { 'line-color': '#3f9ed4', 'line-width': W(.3, .6, 1.2, 2.4) } },
+    { id: 'trail', type: 'line', source: 'trail', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#f7f0dc', 'line-width': W(.5, 1.2, 3.2, 9) } },
+    { id: 'palms', type: 'circle', source: 'palms', minzoom: 16.8, paint: { 'circle-color': '#1b5233', 'circle-radius': W(1, 1.4, 2.8, 6.5), 'circle-stroke-color': '#a7d6b0', 'circle-stroke-width': .6 } },
+    { id: 'pbld', type: 'fill', source: 'pbld', paint: { 'fill-color': '#d4674a' } },
+    { id: 'pbld-line', type: 'line', source: 'pbld', paint: { 'line-color': '#a24a2e', 'line-width': W(.3, .6, 1.1, 2) } },
+    { id: 'beds-sat', type: 'line', source: 'beds', layout: { visibility: 'none' }, paint: { 'line-color': '#fff6d8', 'line-opacity': .55, 'line-width': W(.4, .8, 1.4, 2.2) } },
+    { id: 'path', type: 'line', source: 'paths', layout: { visibility: 'none', 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#fff3cf', 'line-opacity': .5, 'line-width': WM('main', [1.2, 2.6, 6, 16], [.6, 1.4, 3.5, 9]) } },
     { id: 'acc', type: 'fill', source: 'acc', paint: { 'fill-color': '#1a73e8', 'fill-opacity': .12 } },
     { id: 'acc-line', type: 'line', source: 'acc', paint: { 'line-color': '#1a73e8', 'line-opacity': .35, 'line-width': 1 } },
     { id: 'route-case', type: 'line', source: 'route', filter: ['==', ['get', 'k'], 'walk'], layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#ffffff', 'line-width': W(5, 8, 14, 26) } },
     { id: 'route', type: 'line', source: 'route', filter: ['==', ['get', 'k'], 'walk'], layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#1a73e8', 'line-width': W(3, 5, 9, 18) } },
     { id: 'route-link', type: 'line', source: 'route', filter: ['==', ['get', 'k'], 'link'], layout: { 'line-cap': 'round' }, paint: { 'line-color': '#1a73e8', 'line-width': W(2, 3, 5, 9), 'line-dasharray': [0.2, 1.8] } },
     { id: 'road-label', type: 'symbol', source: 'roads', minzoom: 15, filter: ['all', ['has', 'n'], ['!=', ['get', 'k'], 'walk']], layout: { 'symbol-placement': 'line', 'text-field': ['get', 'n'], 'text-font': ['Noto Sans Regular'], 'text-size': ['interpolate', ['linear'], ['zoom'], 15, 10, 19, 14], 'symbol-spacing': 320 }, paint: { 'text-color': '#6d6450', 'text-halo-color': '#fffdf6', 'text-halo-width': 1.4 } },
-    { id: 'path-label', type: 'symbol', source: 'paths', minzoom: 16.2, filter: ['has', 'n'], layout: { 'symbol-placement': 'line', 'text-field': ['get', 'n'], 'text-font': ['Noto Sans Italic'], 'text-size': ['interpolate', ['linear'], ['zoom'], 16.2, 10, 19, 14], 'symbol-spacing': 260, 'text-max-angle': 35, 'text-padding': 2 }, paint: { 'text-color': '#28513a', 'text-halo-color': '#f6eed5', 'text-halo-width': 1.8 } },
+    { id: 'path-label', type: 'symbol', source: 'paths', minzoom: 16.2, filter: ['has', 'n'], layout: { 'symbol-placement': 'line', 'text-field': ['get', 'n'], 'text-font': ['Noto Sans Italic'], 'text-size': ['interpolate', ['linear'], ['zoom'], 16.2, 10, 19, 14], 'symbol-spacing': 260, 'text-max-angle': 35, 'text-padding': 2 }, paint: { 'text-color': '#24492f', 'text-halo-color': '#f7f0dc', 'text-halo-width': 2 } },
   ],
 };
 
@@ -105,9 +108,21 @@ const map = new maplibregl.Map({
 });
 window.__map = map;
 function fitGarden(animate) {
-  const cam = map.cameraForBounds(gb, { padding: { top: 76, bottom: 30, left: 14, right: 74 }, bearing: SIGN_BEARING });
+  const cam = map.cameraForBounds(gb, { bearing: SIGN_BEARING });
   if (!cam) return;
-  map[animate ? 'easeTo' : 'jumpTo']({ center: cam.center, zoom: cam.zoom + 0.35, bearing: SIGN_BEARING, duration: animate ? 600 : 0 });
+  map.jumpTo({ center: cam.center, zoom: cam.zoom, bearing: SIGN_BEARING });
+  // ajuste fino: mede o contorno real na tela já girada e enche a tela com ele
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  GROUND.forEach((c) => { const q = map.project(c); x0 = Math.min(x0, q.x); y0 = Math.min(y0, q.y); x1 = Math.max(x1, q.x); y1 = Math.max(y1, q.y); });
+  const cw = map.getContainer().clientWidth, ch = map.getContainer().clientHeight;
+  const pad = { t: 84, b: 96, l: 12, r: 70 };
+  const k = Math.min((cw - pad.l - pad.r) / (x1 - x0), (ch - pad.t - pad.b) / (y1 - y0));
+  const mid = map.unproject([(x0 + x1) / 2, (y0 + y1) / 2]);
+  const z = map.getZoom() + Math.log2(k);
+  const off = [((pad.l - pad.r) / 2), ((pad.t - pad.b) / 2)];
+  map.jumpTo({ center: mid, zoom: z });
+  const cpx = map.project(mid); const ctr = map.unproject([cpx.x - off[0], cpx.y - off[1]]);
+  map[animate ? 'easeTo' : 'jumpTo']({ center: ctr, zoom: z, bearing: SIGN_BEARING, duration: animate ? 600 : 0 });
 }
 fitGarden(false);
 map.touchZoomRotate.enableRotation();
@@ -116,13 +131,13 @@ map.on('zoom', setZoomCls); setZoomCls();
 
 /* ---------------- camadas: mapa x satélite ---------------- */
 let sat = false;
-const MAP_ONLY = ['ctxb', 'road-case', 'road', 'garden', 'greens', 'water', 'water-line', 'rows', 'palms', 'bld', 'bld-line', 'path-case', 'garden-edge'];
+const MAP_ONLY = ['ctxb', 'road-case', 'road', 'ground', 'ground-edge', 'beds', 'beds-edge', 'amazon', 'canal', 'pwater', 'pwater-line', 'trail', 'palms', 'pbld', 'pbld-line'];
+const SAT_ONLY = ['sat', 'beds-sat', 'path'];
 function applyLayerMode() {
-  if (!map.isStyleLoaded()) return;
-  map.setLayoutProperty('sat', 'visibility', sat ? 'visible' : 'none');
+  if (!map.isStyleLoaded()) { map.once('idle', applyLayerMode); return; }
+  SAT_ONLY.forEach((id) => map.setLayoutProperty(id, 'visibility', sat ? 'visible' : 'none'));
   MAP_ONLY.forEach((id) => map.setLayoutProperty(id, 'visibility', sat ? 'none' : 'visible'));
-  map.setPaintProperty('path', 'line-opacity', sat ? 0.55 : 1);
-  map.setPaintProperty('ww', 'line-opacity', sat ? 0.5 : 1);
+  map.setPaintProperty('path-label', 'text-halo-color', sat ? '#ffffff' : '#f7f0dc');
   $('#layerLbl').textContent = sat ? 'Mapa' : 'Satélite';
 }
 $('#layerBtn').onclick = () => { sat = !sat; applyLayerMode(); try { localStorage.setItem('jb-sat', sat ? '1' : '0'); } catch (e) {} };
@@ -395,8 +410,8 @@ function onPosErr(err) {
   else if (!me) toast('Ainda sem sinal de GPS. Fique em um lugar mais aberto por alguns segundos.', 5000);
 }
 function distToGarden(c) {
-  if (pointInRing(c, JB.ring)) return 0;
-  let best = Infinity; for (const p of JB.ring) best = Math.min(best, dist(c, p)); return best;
+  if (pointInRing(c, GROUND) || pointInRing(c, JB.ring)) return 0;
+  let best = Infinity; for (const p of GROUND) best = Math.min(best, dist(c, p)); return best;
 }
 function pointInRing(c, ring) {
   let inside = false; const [x, y] = c;
